@@ -1,0 +1,977 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "TaskFlow REST API",
+    "version": "1.0.0",
+    "description": "Comprehensive OpenAPI 3.0 specification for TaskFlow - An enterprise MERN-stack project and task management system featuring Role-Based Access Control (RBAC), Kanban workflow management, MongoDB aggregation analytics, smart notifications, and executive administration governance.",
+    "contact": {
+      "name": "TaskFlow Engineering Team",
+      "email": "engineering@taskflow.dev"
+    },
+    "license": {
+      "name": "ISC",
+      "url": "https://opensource.org/licenses/ISC"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000/api",
+      "description": "Local Development Server"
+    }
+  ],
+  "tags": [
+    {
+      "name": "Health",
+      "description": "API status and diagnostic probes"
+    },
+    {
+      "name": "Auth",
+      "description": "Authentication, user onboarding, session control, and current user identity"
+    },
+    {
+      "name": "Users",
+      "description": "User profile management, password updates, and member search"
+    },
+    {
+      "name": "Projects",
+      "description": "Project lifecycle management, team memberships, and access controls"
+    },
+    {
+      "name": "Tasks",
+      "description": "Task creation, assignment, Kanban status transitions, and collaborative comments"
+    },
+    {
+      "name": "Dashboard",
+      "description": "Aggregated analytics, completion velocity, upcoming deadlines, and activity feeds"
+    },
+    {
+      "name": "Notifications",
+      "description": "In-app notifications, unread badges, mark-read operations, and preference toggles"
+    },
+    {
+      "name": "Admin",
+      "description": "Executive dashboard metrics, user directory governance, role changes, and account suspensions"
+    }
+  ],
+  "components": {
+    "securitySchemes": {
+      "bearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Standard Authorization header using Bearer scheme with JWT."
+      },
+      "cookieAuth": {
+        "type": "apiKey",
+        "in": "cookie",
+        "name": "token",
+        "description": "Secure HTTP-only browser cookie containing the session JWT."
+      }
+    },
+    "schemas": {
+      "ErrorResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": false },
+          "message": { "type": "string", "example": "Invalid authentication token or validation failure" },
+          "errors": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["Password must be at least 6 characters long"]
+          }
+        },
+        "required": ["success", "message"]
+      },
+      "SuccessResponse": {
+        "type": "object",
+        "properties": {
+          "success": { "type": "boolean", "example": true },
+          "message": { "type": "string", "example": "Operation completed successfully" }
+        },
+        "required": ["success"]
+      },
+      "PaginationMeta": {
+        "type": "object",
+        "properties": {
+          "total": { "type": "integer", "example": 42 },
+          "page": { "type": "integer", "example": 1 },
+          "limit": { "type": "integer", "example": 10 },
+          "totalPages": { "type": "integer", "example": 5 }
+        }
+      },
+      "UserSafe": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "66f1234567890abcdef12345" },
+          "name": { "type": "string", "example": "Jane Doe" },
+          "username": { "type": "string", "example": "jane_doe" },
+          "email": { "type": "string", "format": "email", "example": "jane@example.com" },
+          "role": { "type": "string", "enum": ["USER", "PROJECT_MANAGER", "ADMIN"], "example": "USER" },
+          "status": { "type": "string", "enum": ["ACTIVE", "SUSPENDED"], "example": "ACTIVE" },
+          "isActive": { "type": "boolean", "example": true },
+          "profileImage": { "type": "string", "nullable": true, "example": null },
+          "createdAt": { "type": "string", "format": "date-time" },
+          "updatedAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Project": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "66f1234567890abcdef12346" },
+          "name": { "type": "string", "example": "Mobile App Redesign" },
+          "description": { "type": "string", "example": "Redesigning the iOS and Android applications" },
+          "manager": { "$ref": "#/components/schemas/UserSafe" },
+          "members": {
+            "type": "array",
+            "items": { "$ref": "#/components/schemas/UserSafe" }
+          },
+          "status": {
+            "type": "string",
+            "enum": ["PLANNING", "ACTIVE", "ON_HOLD", "COMPLETED", "CANCELLED"],
+            "example": "ACTIVE"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+            "example": "HIGH"
+          },
+          "startDate": { "type": "string", "format": "date-time" },
+          "endDate": { "type": "string", "format": "date-time" },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      },
+      "Task": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "66f1234567890abcdef12347" },
+          "title": { "type": "string", "example": "Design Figma Mockups" },
+          "description": { "type": "string", "example": "Complete wireframes for onboarding flow" },
+          "project": { "type": "string", "example": "66f1234567890abcdef12346" },
+          "assignedTo": { "$ref": "#/components/schemas/UserSafe" },
+          "createdBy": { "type": "string", "example": "66f1234567890abcdef12345" },
+          "status": {
+            "type": "string",
+            "enum": ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"],
+            "example": "IN_PROGRESS"
+          },
+          "priority": {
+            "type": "string",
+            "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+            "example": "HIGH"
+          },
+          "dueDate": { "type": "string", "format": "date-time", "nullable": true },
+          "completedAt": { "type": "string", "format": "date-time", "nullable": true },
+          "estimatedHours": { "type": "number", "example": 8 },
+          "labels": {
+            "type": "array",
+            "items": { "type": "string" },
+            "example": ["design", "ui/ux"]
+          },
+          "comments": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "properties": {
+                "_id": { "type": "string" },
+                "user": { "$ref": "#/components/schemas/UserSafe" },
+                "message": { "type": "string" },
+                "createdAt": { "type": "string", "format": "date-time" }
+              }
+            }
+          }
+        }
+      },
+      "Notification": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "example": "66f1234567890abcdef12348" },
+          "recipient": { "type": "string" },
+          "type": {
+            "type": "string",
+            "enum": [
+              "TASK_ASSIGNED",
+              "TASK_STATUS_CHANGED",
+              "TASK_COMPLETED",
+              "TASK_DUE_SOON",
+              "TASK_OVERDUE",
+              "PROJECT_ADDED",
+              "PROJECT_UPDATED",
+              "PROJECT_MANAGER_CHANGED",
+              "COMMENT_ADDED",
+              "ROLE_UPDATED",
+              "ACCOUNT_STATUS_CHANGED",
+              "SYSTEM"
+            ]
+          },
+          "title": { "type": "string", "example": "Task Assigned" },
+          "message": { "type": "string", "example": "You have been assigned to 'Design Figma Mockups'" },
+          "link": { "type": "string", "nullable": true, "example": "/tasks/66f1234567890abcdef12347" },
+          "isRead": { "type": "boolean", "example": false },
+          "readAt": { "type": "string", "format": "date-time", "nullable": true },
+          "createdAt": { "type": "string", "format": "date-time" }
+        }
+      }
+    }
+  },
+  "paths": {
+    "/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Health check probe",
+        "description": "Returns uptime, environment, version, and active subsystem registry.",
+        "responses": {
+          "200": {
+            "description": "Server is operational",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "TaskFlow API Server is healthy and running" },
+                    "uptime": { "type": "string", "example": "120s" },
+                    "environment": { "type": "string", "example": "development" },
+                    "version": { "type": "string", "example": "1.0.0" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Register a new user",
+        "description": "Creates a new user account with default role USER, hashes password with bcrypt, and establishes HTTP-only authentication cookie.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "username", "email", "password"],
+                "properties": {
+                  "name": { "type": "string", "example": "Jane Doe", "minLength": 2, "maxLength": 50 },
+                  "username": { "type": "string", "example": "janedoe", "pattern": "^[a-zA-Z0-9_]+$" },
+                  "email": { "type": "string", "format": "email", "example": "jane@example.com" },
+                  "password": { "type": "string", "format": "password", "minLength": 6, "example": "Password123!" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Account created successfully",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "User registration successful" },
+                    "data": { "$ref": "#/components/schemas/UserSafe" },
+                    "token": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validation error", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "409": { "description": "Email or username conflict", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Authenticate user session",
+        "description": "Verifies email and password, checks active account status, and issues JWT session token.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "jane@example.com" },
+                  "password": { "type": "string", "format": "password", "example": "Password123!" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login successful",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "message": { "type": "string", "example": "Authentication successful" },
+                    "data": { "$ref": "#/components/schemas/UserSafe" },
+                    "token": { "type": "string" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Invalid credentials", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } },
+          "403": { "description": "Account suspended", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/ErrorResponse" } } } }
+        }
+      }
+    },
+    "/auth/logout": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Terminate session",
+        "description": "Clears HTTP-only session cookie.",
+        "responses": {
+          "200": { "description": "Logged out successfully", "content": { "application/json": { "schema": { "$ref": "#/components/schemas/SuccessResponse" } } } }
+        }
+      }
+    },
+    "/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Get authenticated user profile",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Current user identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": { "$ref": "#/components/schemas/UserSafe" }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Unauthorized" }
+        }
+      }
+    },
+    "/users/profile": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Get user profile details",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Profile data",
+            "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "data": { "$ref": "#/components/schemas/UserSafe" } } } } }
+          }
+        }
+      },
+      "put": {
+        "tags": ["Users"],
+        "summary": "Update user profile details",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string", "example": "Jane Doe" },
+                  "username": { "type": "string", "example": "janedoe_new" },
+                  "profileImage": { "type": "string", "nullable": true }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Profile updated", "content": { "application/json": { "schema": { "type": "object", "properties": { "success": { "type": "boolean" }, "data": { "$ref": "#/components/schemas/UserSafe" } } } } } },
+          "400": { "description": "Validation error" },
+          "409": { "description": "Username already taken" }
+        }
+      }
+    },
+    "/users/password": {
+      "put": {
+        "tags": ["Users"],
+        "summary": "Change user password",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["currentPassword", "newPassword"],
+                "properties": {
+                  "currentPassword": { "type": "string", "format": "password" },
+                  "newPassword": { "type": "string", "format": "password", "minLength": 6 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Password updated successfully" },
+          "400": { "description": "Invalid current password or validation error" }
+        }
+      }
+    },
+    "/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Search active users for team membership",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" }, "description": "Name or email substring" }
+        ],
+        "responses": {
+          "200": {
+            "description": "List of matching users",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": { "type": "array", "items": { "$ref": "#/components/schemas/UserSafe" } }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/projects": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "List accessible projects",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "priority", "in": "query", "schema": { "type": "string" } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated projects list",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean" },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "projects": { "type": "array", "items": { "$ref": "#/components/schemas/Project" } },
+                        "pagination": { "$ref": "#/components/schemas/PaginationMeta" }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Projects"],
+        "summary": "Create project",
+        "description": "Requires PROJECT_MANAGER or ADMIN role.",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "description", "startDate", "endDate"],
+                "properties": {
+                  "name": { "type": "string", "example": "Core Redesign" },
+                  "description": { "type": "string", "example": "Redesigning core architecture" },
+                  "status": { "type": "string", "enum": ["PLANNING", "ACTIVE", "ON_HOLD", "COMPLETED", "CANCELLED"], "default": "PLANNING" },
+                  "priority": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"], "default": "MEDIUM" },
+                  "startDate": { "type": "string", "format": "date-time" },
+                  "endDate": { "type": "string", "format": "date-time" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Project created successfully" },
+          "400": { "description": "Validation error" },
+          "403": { "description": "Forbidden - PM or ADMIN role required" }
+        }
+      }
+    },
+    "/projects/{id}": {
+      "get": {
+        "tags": ["Projects"],
+        "summary": "Get project details",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Project details" },
+          "404": { "description": "Project not found" }
+        }
+      },
+      "put": {
+        "tags": ["Projects"],
+        "summary": "Update project details",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Project updated successfully" },
+          "403": { "description": "Only manager or admin can update" }
+        }
+      },
+      "delete": {
+        "tags": ["Projects"],
+        "summary": "Delete project and associated tasks",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Project deleted successfully" },
+          "403": { "description": "Only manager or admin can delete" }
+        }
+      }
+    },
+    "/projects/{id}/members": {
+      "post": {
+        "tags": ["Projects"],
+        "summary": "Add team member to project",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["userId"],
+                "properties": {
+                  "userId": { "type": "string" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Member added and notified" }
+        }
+      }
+    },
+    "/projects/{id}/members/{userId}": {
+      "delete": {
+        "tags": ["Projects"],
+        "summary": "Remove member from project",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } },
+          { "name": "userId", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Member removed successfully" }
+        }
+      }
+    },
+    "/tasks": {
+      "get": {
+        "tags": ["Tasks"],
+        "summary": "Search and filter tasks across accessible projects",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "project", "in": "query", "schema": { "type": "string" } },
+          { "name": "status", "in": "query", "schema": { "type": "string" } },
+          { "name": "priority", "in": "query", "schema": { "type": "string" } },
+          { "name": "assignedTo", "in": "query", "schema": { "type": "string" } },
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } }
+        ],
+        "responses": {
+          "200": { "description": "List of tasks" }
+        }
+      },
+      "post": {
+        "tags": ["Tasks"],
+        "summary": "Create new task in project",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "project"],
+                "properties": {
+                  "title": { "type": "string", "example": "Setup SSL certificates" },
+                  "description": { "type": "string" },
+                  "project": { "type": "string" },
+                  "assignedTo": { "type": "string", "nullable": true },
+                  "status": { "type": "string", "enum": ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"], "default": "TODO" },
+                  "priority": { "type": "string", "enum": ["LOW", "MEDIUM", "HIGH", "CRITICAL"], "default": "MEDIUM" },
+                  "dueDate": { "type": "string", "format": "date-time" },
+                  "estimatedHours": { "type": "number" },
+                  "labels": { "type": "array", "items": { "type": "string" } }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Task created and assignee notified" }
+        }
+      }
+    },
+    "/tasks/{id}": {
+      "get": {
+        "tags": ["Tasks"],
+        "summary": "Get task details by ID",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Task details" }
+        }
+      },
+      "put": {
+        "tags": ["Tasks"],
+        "summary": "Update task properties",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Task updated" }
+        }
+      },
+      "delete": {
+        "tags": ["Tasks"],
+        "summary": "Delete task",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Task deleted" }
+        }
+      }
+    },
+    "/tasks/{id}/status": {
+      "patch": {
+        "tags": ["Tasks"],
+        "summary": "Change task status (Kanban drag-and-drop)",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "enum": ["TODO", "IN_PROGRESS", "IN_REVIEW", "DONE"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Task status updated, completion timestamp tracked, activity logged" }
+        }
+      }
+    },
+    "/tasks/{id}/comments": {
+      "post": {
+        "tags": ["Tasks"],
+        "summary": "Add collaborative comment to task",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["message"],
+                "properties": {
+                  "message": { "type": "string", "maxLength": 1000 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Comment added and stakeholders notified" }
+        }
+      }
+    },
+    "/dashboard/overview": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "Aggregated user dashboard statistics",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "projectId", "in": "query", "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Overview metrics" }
+        }
+      }
+    },
+    "/dashboard/trends": {
+      "get": {
+        "tags": ["Dashboard"],
+        "summary": "Task completion velocity trends",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "period", "in": "query", "schema": { "type": "string", "enum": ["daily", "weekly", "monthly"], "default": "weekly" } }
+        ],
+        "responses": {
+          "200": { "description": "Completion time series data" }
+        }
+      }
+    },
+    "/notifications": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "List recipient notifications",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "isRead", "in": "query", "schema": { "type": "boolean" } },
+          { "name": "type", "in": "query", "schema": { "type": "string" } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 15 } }
+        ],
+        "responses": {
+          "200": { "description": "Notifications page with unread count" }
+        }
+      }
+    },
+    "/notifications/unread-count": {
+      "get": {
+        "tags": ["Notifications"],
+        "summary": "Get total count of unread notifications for badge",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Unread counter",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "success": { "type": "boolean", "example": true },
+                    "data": {
+                      "type": "object",
+                      "properties": {
+                        "unreadCount": { "type": "integer", "example": 3 }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/notifications/{id}/read": {
+      "patch": {
+        "tags": ["Notifications"],
+        "summary": "Mark single notification as read",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Notification marked as read" }
+        }
+      }
+    },
+    "/notifications/read-all": {
+      "patch": {
+        "tags": ["Notifications"],
+        "summary": "Mark all notifications as read in bulk",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "responses": {
+          "200": { "description": "All notifications marked read" }
+        }
+      }
+    },
+    "/admin/dashboard/overview": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Executive platform statistics",
+        "description": "Accessible exclusively to ADMIN role.",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "responses": {
+          "200": { "description": "Platform overview" },
+          "403": { "description": "Forbidden - Admin role required" }
+        }
+      }
+    },
+    "/admin/dashboard/user-growth": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "User registration velocity time-series",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "days", "in": "query", "schema": { "type": "integer", "default": 30 } }
+        ],
+        "responses": {
+          "200": { "description": "Daily registration growth" }
+        }
+      }
+    },
+    "/admin/dashboard/project-stats": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Project status and priority distributions",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "responses": {
+          "200": { "description": "Aggregated project counts" }
+        }
+      }
+    },
+    "/admin/dashboard/task-stats": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "System-wide task status and priority distributions",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "responses": {
+          "200": { "description": "Aggregated task metrics" }
+        }
+      }
+    },
+    "/admin/users": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Search, filter, and paginate user directory",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "search", "in": "query", "schema": { "type": "string" } },
+          { "name": "role", "in": "query", "schema": { "type": "string", "enum": ["USER", "PROJECT_MANAGER", "ADMIN"] } },
+          { "name": "status", "in": "query", "schema": { "type": "string", "enum": ["ACTIVE", "SUSPENDED"] } },
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 } },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 } },
+          { "name": "sortBy", "in": "query", "schema": { "type": "string", "default": "createdAt" } },
+          { "name": "sortOrder", "in": "query", "schema": { "type": "string", "enum": ["asc", "desc"], "default": "desc" } }
+        ],
+        "responses": {
+          "200": { "description": "Paginated user directory" }
+        }
+      }
+    },
+    "/admin/users/{id}": {
+      "get": {
+        "tags": ["Admin"],
+        "summary": "Get user intelligence details",
+        "description": "Returns user profile, accessible projects, assigned tasks, task summary, and recent audit activity.",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Complete user details" },
+          "404": { "description": "User not found" }
+        }
+      },
+      "delete": {
+        "tags": ["Admin"],
+        "summary": "Safely delete user account",
+        "description": "Performs safe dependency cleanup: removes from project member lists, unassigns tasks, prevents deleting active project manager or last active administrator.",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "User deleted and dependencies cleaned up" },
+          "400": { "description": "Cannot delete self, last admin, or active project manager" }
+        }
+      }
+    },
+    "/admin/users/{id}/role": {
+      "patch": {
+        "tags": ["Admin"],
+        "summary": "Change user role",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["role"],
+                "properties": {
+                  "role": { "type": "string", "enum": ["USER", "PROJECT_MANAGER", "ADMIN"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "User role updated, notification dispatched, activity recorded" },
+          "400": { "description": "Cannot demote last active administrator" }
+        }
+      }
+    },
+    "/admin/users/{id}/status": {
+      "patch": {
+        "tags": ["Admin"],
+        "summary": "Update user account status (ACTIVE / SUSPENDED)",
+        "security": [{ "bearerAuth": [] }, { "cookieAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": { "type": "string", "enum": ["ACTIVE", "SUSPENDED"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Status updated successfully" },
+          "400": { "description": "Cannot suspend self or last active administrator" }
+        }
+      }
+    }
+  }
+}

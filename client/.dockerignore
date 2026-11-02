@@ -1,0 +1,19 @@
+# Dependencies and package caches
+node_modules/
+npm-debug.log*
+
+# Build outputs
+dist/
+build/
+
+# Git repository files
+.git/
+.gitignore
+
+# Environment files
+.env*
+!.env.example
+
+# Test outputs
+tests/
+coverage/

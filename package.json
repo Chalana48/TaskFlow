@@ -1,0 +1,26 @@
+{
+  "name": "taskflow-workspace",
+  "version": "1.0.0",
+  "description": "TaskFlow – Smart Project & Team Management Platform (MERN Stack)",
+  "private": true,
+  "scripts": {
+    "server": "npm run dev --prefix server",
+    "client": "npm run dev --prefix client",
+    "server:start": "npm start --prefix server",
+    "build": "npm run build --prefix client",
+    "test:server": "npm test --prefix server",
+    "test:client": "npm test --prefix client",
+    "test": "npm test --prefix server && npm test --prefix client"
+  },
+  "keywords": [
+    "mern",
+    "mongodb",
+    "express",
+    "react",
+    "node",
+    "saas",
+    "project-management"
+  ],
+  "author": "TaskFlow Team",
+  "license": "MIT"
+}

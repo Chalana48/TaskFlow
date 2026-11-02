@@ -1,0 +1,30 @@
+# ==========================================
+# TaskFlow Render Infrastructure Blueprint
+# Deploys Express Backend REST API Web Service
+# ==========================================
+
+services:
+  - type: web
+    name: taskflow-api
+    env: node
+    rootDir: server
+    buildCommand: npm ci
+    startCommand: node server.js
+    plan: free
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: MONGO_URI
+        sync: false # Set in Render Dashboard: mongodb+srv://<user>:<password>@cluster.mongodb.net/taskflow?retryWrites=true&w=majority
+      - key: JWT_SECRET
+        generateValue: true # Generates a secure random 32+ char key automatically
+      - key: JWT_EXPIRES_IN
+        value: 7d
+      - key: CLIENT_URL
+        sync: false # Set in Render Dashboard to your frontend URL (e.g. https://taskflow.vercel.app)
+      - key: MAX_FILE_SIZE
+        value: 5242880
+      - key: UPLOAD_PATH
+        value: uploads

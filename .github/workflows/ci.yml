@@ -1,0 +1,128 @@
+name: TaskFlow Continuous Integration (CI)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+      - develop
+  pull_request:
+    branches:
+      - main
+      - master
+      - develop
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ==========================================
+  # Job 1: Backend Tests & Coverage Suite
+  # ==========================================
+  backend-test:
+    name: Backend Tests & Coverage
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    services:
+      mongodb:
+        image: mongo:7.0
+        ports:
+          - 27017:27017
+        options: >-
+          --health-cmd "echo 'db.runCommand(\"ping\").ok' | mongosh localhost:27017/test --quiet"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    defaults:
+      run:
+        working-directory: ./server
+
+    env:
+      NODE_ENV: test
+      PORT: 5000
+      MONGO_URI: mongodb://127.0.0.1:27017/taskflow_test
+      JWT_SECRET: ci_test_jwt_secret_key_only_not_for_production_32_chars
+      JWT_EXPIRES_IN: 1d
+      CLIENT_URL: http://localhost:5173
+
+    steps:
+      - name: Check out repository source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: server/package-lock.json
+
+      - name: Install backend dependencies (clean install)
+        run: npm ci
+
+      - name: Run service-level unit tests
+        run: npm run test:unit
+
+      - name: Run API integration test suites
+        run: npm run test:integration
+
+      - name: Run complete 14-step End-to-End user journeys
+        run: npm run test:e2e
+
+      - name: Generate complete coverage report
+        run: npm run test:coverage
+
+      - name: Upload test coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: backend-coverage-report
+          path: server/coverage/
+          retention-days: 14
+
+  # ==========================================
+  # Job 2: Frontend Tests & Production Build
+  # ==========================================
+  frontend-build:
+    name: Frontend Tests & Production Build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    defaults:
+      run:
+        working-directory: ./client
+
+    env:
+      VITE_API_URL: /api
+
+    steps:
+      - name: Check out repository source
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js LTS
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: client/package-lock.json
+
+      - name: Install frontend dependencies (clean install)
+        run: npm ci
+
+      - name: Run frontend unit & logic tests
+        run: npm test
+
+      - name: Build production Vite bundle
+        run: npm run build
+
+      - name: Upload production build bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-production-dist
+          path: client/dist/
+          retention-days: 14
